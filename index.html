@@ -4,252 +4,308 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Puzzle Cipher</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Crimson+Pro:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
 
 <style>
-/* Rich-text editor additions */
-.editor-wrapper {
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  overflow: hidden;
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #fff;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: #000;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 12px;
 }
+
+/* ── Plate ──────────────────────────── */
+.plate {
+  width: 100%;
+  max-width: 540px;
+  border: 0.5px solid #000;
+  display: flex;
+  flex-direction: column;
+  align-self: flex-start;
+}
+
+/* ── Title row ──────────────────────── */
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid #000;
+}
+.title-row h1 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.title-row .sub {
+  font-size: 10px;
+  font-weight: 400;
+  color: #555;
+  font-style: italic;
+}
+
+/* ── Sections ───────────────────────── */
+.section {
+  padding: 12px 16px;
+  border-bottom: 0.5px solid #000;
+}
+.section:last-child { border-bottom: none; }
+.section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.section-flavor {
+  font-size: 10px;
+  font-style: italic;
+  color: #555;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* ── Steps ──────────────────────────── */
+.steps { font-size: 11px; line-height: 1.7; }
+.steps .s { display: flex; gap: 6px; margin-bottom: 3px; }
+.steps .n { font-weight: 700; flex-shrink: 0; width: 24px; text-align: right; font-size: 10px; padding-top: 1px; }
+.divider { border-top: 0.5px dashed #aaa; margin: 10px 0; }
+
+/* ── Form ───────────────────────────── */
+.field { margin-bottom: 12px; }
+.field-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.field input[type="password"],
+.field input[type="text"] {
+  width: 100%;
+  border: 0.5px solid #000;
+  padding: 10px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #000;
+  background: #fff;
+  outline: none;
+}
+.field input::placeholder { color: #aaa; }
+.field input:focus { box-shadow: 0 0 0 1px #000; }
+.password-field { position: relative; }
+.password-field input { padding-right: 40px; }
+.toggle-pass {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #555; cursor: pointer; font-size: 16px; padding: 4px;
+}
+
+/* ── Editor ─────────────────────────── */
+.editor-wrapper { border: 0.5px solid #000; overflow: hidden; }
 .editor-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
-  padding: 8px 10px;
-  background: #f7f7f7;
-  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+  background: #f5f5f5;
+  border-bottom: 0.5px solid #000;
 }
 .tb {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
-  height: 26px;
-  padding: 0 5px;
-  border: 1px solid transparent;
-  border-radius: 3px;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 4px;
+  border: 0.5px solid transparent;
   background: none;
-  color: var(--text-dim);
-  font-family: var(--mono);
-  font-size: 12px;
+  color: #555;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 11px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.1s;
   white-space: nowrap;
 }
-.tb:hover { background: #e8e8e8; color: var(--text); border-color: var(--border); }
-.tb.active { background: #e8e8e8; color: var(--accent); border-color: var(--accent-dim); }
-.tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 3px; align-self: center; }
+.tb:hover { background: #e0e0e0; color: #000; border-color: #aaa; }
+.tb-sep { width: 0.5px; height: 16px; background: #ccc; margin: 0 3px; align-self: center; }
 .rich-editor {
-  min-height: 220px;
-  max-height: 520px;
+  min-height: 180px;
+  max-height: 400px;
   overflow-y: auto;
-  padding: 16px;
-  font-family: var(--serif);
-  font-size: 16px;
-  line-height: 1.8;
-  color: var(--text);
-  background: var(--surface);
+  padding: 12px;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #000;
+  background: #fff;
   outline: none;
   white-space: pre-wrap;
-}
-.rich-editor:focus { outline: none; }
-.rich-editor blockquote {
-  border-left: 3px solid var(--accent-dim);
-  margin: 8px 0;
-  padding: 4px 12px;
-  color: var(--text-dim);
-}
-.rich-editor h1 { font-size: 1.6em; font-family: var(--serif); margin-bottom: 4px; }
-.rich-editor h2 { font-size: 1.3em; font-family: var(--serif); margin-bottom: 4px; }
-.rich-editor ul, .rich-editor ol { padding-left: 24px; }
-/* color picker */
-input[type=color].color-pick {
-  width: 26px; height: 26px;
-  border: none; border-radius: 3px;
-  padding: 2px; cursor: pointer;
-  background: none;
-}
-/* progress bar */
-.kdf-progress {
-  display: none;
-  margin-bottom: 16px;
-  padding: 10px 14px;
-  background: #f7f7f7;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 11px;
-  color: var(--text-dim);
-}
-.kdf-progress.visible { display: block; }
-.kdf-bar-track {
-  height: 3px;
-  background: var(--border);
-  border-radius: 2px;
-  margin-top: 8px;
-  overflow: hidden;
-}
-.kdf-bar-fill {
-  height: 100%;
-  background: var(--accent);
-  width: 0%;
-  transition: width 0.1s;
-}
-
-/* ── Core layout & shared components ──────────────────────────────────────── */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-:root {
-  --bg: #ffffff;
-  --surface: #ffffff;
-  --border: #e0e0e0;
-  --text: #1a1a1a;
-  --text-dim: #888888;
-  --accent: #cc2222;
-  --accent-dim: #cc2222;
-  --red: #cc2222;
-  --mono: 'JetBrains Mono', monospace;
-  --serif: 'Crimson Pro', Georgia, serif;
-}
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--mono);
-  min-height: 100vh;
-  overflow-x: hidden;
-  display: flex;
-  justify-content: center;
-  padding: 0;
-}
-
-.container {
-  max-width: 680px;
-  width: 100%;
-  background: #ffffff;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  padding: 48px 40px;
-  margin: 40px auto;
   position: relative;
 }
-.container::before {
-  content: 'CIPHER';
-  position: absolute; top: 16px; left: 20px;
-  font-size: 9px; letter-spacing: 3px; color: #cccccc;
+.rich-editor:focus { outline: none; }
+.rich-editor blockquote { border-left: 2px solid #000; margin: 6px 0; padding: 4px 10px; color: #555; }
+.rich-editor h1 { font-size: 1.4em; margin-bottom: 4px; }
+.rich-editor h2 { font-size: 1.2em; margin-bottom: 4px; }
+.rich-editor ul, .rich-editor ol { padding-left: 20px; }
+input[type=color].color-pick { width: 22px; height: 22px; border: none; padding: 2px; cursor: pointer; background: none; }
+
+/* ── Progress ───────────────────────── */
+.kdf-progress {
+  display: none;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border: 0.5px solid #000;
+  font-size: 10px;
+  color: #555;
 }
-.container::after {
-  content: '⧫';
-  position: absolute; top: 12px; right: 20px;
-  font-size: 14px; color: #cc2222;
+.kdf-progress.visible { display: block; }
+.kdf-bar-track { height: 2px; background: #ddd; margin-top: 6px; overflow: hidden; }
+.kdf-bar-fill { height: 100%; background: #000; width: 0%; transition: width 0.1s; }
+
+/* ── Buttons ────────────────────────── */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-align: center;
+  text-decoration: none;
+  border: 0.5px solid #000;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-bottom: 8px;
 }
+.btn-primary { background: #000; color: #fff; }
+.btn-primary:hover { background: #333; }
+.btn-secondary { background: #fff; color: #000; }
+.btn-secondary:hover { background: #f0f0f0; }
 
-.header { text-align: center; margin-bottom: 48px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
-.header h1 { font-size: 13px; font-weight: 500; letter-spacing: 6px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
-.header p { font-family: var(--serif); font-size: 18px; font-weight: 300; font-style: italic; color: var(--text-dim); line-height: 1.6; }
-
-
-.field { margin-bottom: 22px; }
-.field label { display: block; font-size: 10px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
-.field input, .field textarea {
-  width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-  padding: 13px 16px; color: var(--text); font-family: var(--mono); font-size: 14px; outline: none;
-  transition: border-color 0.2s;
-}
-.field input:focus, .field textarea:focus { border-color: var(--accent-dim); }
-.field textarea { min-height: 120px; resize: vertical; line-height: 1.7; }
-.field input::placeholder, .field textarea::placeholder { color: #cccccc; }
-
-.password-field { position: relative; }
-.password-field input { padding-right: 48px; }
-.toggle-pass { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px; padding: 4px; }
-
-.btn { width: 100%; padding: 16px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; }
-.btn-encode { background: var(--accent); color: #ffffff; }
-.btn-encode:hover { background: #a01a1a; }
-
-.output { display: none; animation: fadeIn 0.4s ease; }
+/* ── Output ─────────────────────────── */
+.output { display: none; animation: fadeIn 0.3s ease; }
 .output.visible { display: block; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.output-label { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+.output-text { font-size: 11px; color: #555; line-height: 1.6; margin-bottom: 10px; font-style: italic; }
+.download-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  background: #fff;
+  border: 0.5px solid #000;
+  color: #000;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.download-btn:hover { background: #000; color: #fff; }
 
-.output-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.output-header h3 { font-size: 10px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); }
-
-
-.error-msg { padding: 14px; background: #fff5f5; border: 1px solid #e0c0c0; border-radius: 4px; color: var(--red); font-size: 13px; margin-bottom: 16px; display: none; }
+/* ── Error ──────────────────────────── */
+.error-msg {
+  padding: 10px 12px;
+  border: 0.5px solid #000;
+  font-size: 11px;
+  margin-bottom: 10px;
+  display: none;
+}
 .error-msg.visible { display: block; }
 
-.privacy { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; }
-.privacy p { font-size: 11px; color: var(--text-dim); line-height: 1.8; }
-.privacy strong { color: var(--accent-dim); font-weight: 500; }
+/* ── Footer ─────────────────────────── */
+.plate-footer {
+  font-size: 10px;
+  font-style: italic;
+  color: #555;
+  text-align: center;
+  padding: 10px 16px;
+  border-top: 0.5px dashed #aaa;
+}
 
-
-.action-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-.download-btn { display: inline-block; padding: 10px 20px; font-family: var(--mono); font-size: 11px; letter-spacing: 1px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; color: var(--text-dim); cursor: pointer; text-decoration: none; transition: all 0.2s; }
-.download-btn:hover { border-color: var(--accent-dim); color: var(--text); }
-
+/* ── Placeholder ────────────────────── */
+.rich-editor[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: #bbb;
+  pointer-events: none;
+}
 
 @media (max-width: 480px) {
-  .container { padding: 24px 16px 60px; }
+  body { padding: 8px; }
+  .section, .title-row { padding: 10px 12px; }
 }
 </style>
 </head>
 <body>
 
-<div class="container">
+<div class="plate">
 
-  <div class="header">
-    <h1>⧫ Puzzle Cipher ⧫</h1>
-    <p>Write a private message and lock it with a password.<br>
-    Everything stays on your device — nothing is sent anywhere.</p>
+  <div class="title-row">
+    <h1>Puzzle Cipher</h1>
+    <span class="sub">Encode &nbsp;·&nbsp; Encrypt &nbsp;·&nbsp; Upload</span>
   </div>
 
-  <!-- ══ ENCODE VIEW ═══════════════════════════════════════════════════════ -->
-  <div id="encode-view">
+  <!-- ── Instructions ──────────────────── -->
+  <div class="section">
+    <div class="section-label">How to Play</div>
+    <div class="section-flavor">Complete each step in order.</div>
+    <div class="steps">
+      <div class="s"><span class="n">I.</span><span>Choose a <b>password</b> — share it with the recipient in person.</span></div>
+      <div class="s"><span class="n">II.</span><span>Write your <b>secret message</b> in the editor below.</span></div>
+      <div class="s"><span class="n">III.</span><span>Click <b>Encrypt &amp; Download</b> to generate the cipher file.</span></div>
+      <div class="s"><span class="n">IV.</span><span>Upload the <code style="font-family:'Courier New',monospace;font-size:10px;">.bin</code> file to the shared Drive folder.</span></div>
+      <div class="s"><span class="n">V.</span><span>The recipient decodes it using the password + master key.</span></div>
+    </div>
+  </div>
+
+  <!-- ── Encode ────────────────────────── -->
+  <div class="section" id="encode-view">
 
     <div class="field">
-      <label>Password — you'll give this to the recipient in person</label>
+      <label class="field-label">Password</label>
       <div class="password-field">
         <input type="password" id="enc-pass" placeholder="Enter a strong password" autocomplete="off">
         <button class="toggle-pass" onclick="togglePass('enc-pass',this)" title="Show/hide">◉</button>
       </div>
     </div>
 
-    <!-- Rich-text editor -->
     <div class="field">
-      <label>Your message</label>
+      <label class="field-label">Your Message</label>
       <div class="editor-wrapper">
         <div class="editor-toolbar">
-          <!-- Text style -->
           <button class="tb" title="Bold" onclick="fmt('bold')"><b>B</b></button>
           <button class="tb" title="Italic" onclick="fmt('italic')"><i>I</i></button>
           <button class="tb" title="Underline" onclick="fmt('underline')"><u>U</u></button>
           <button class="tb" title="Strike" onclick="fmt('strikeThrough')"><s>S</s></button>
           <div class="tb-sep"></div>
-          <!-- Headings -->
           <button class="tb" title="Heading 1" onclick="fmtBlock('h1')">H1</button>
           <button class="tb" title="Heading 2" onclick="fmtBlock('h2')">H2</button>
           <button class="tb" title="Paragraph" onclick="fmtBlock('p')">¶</button>
           <button class="tb" title="Quote" onclick="fmtBlock('blockquote')">❝</button>
           <div class="tb-sep"></div>
-          <!-- Lists -->
           <button class="tb" title="Bullet list" onclick="fmt('insertUnorderedList')">• list</button>
           <button class="tb" title="Numbered list" onclick="fmt('insertOrderedList')">1. list</button>
           <div class="tb-sep"></div>
-          <!-- Align -->
           <button class="tb" title="Align left" onclick="fmt('justifyLeft')">⇤</button>
           <button class="tb" title="Align center" onclick="fmt('justifyCenter')">⇔</button>
           <button class="tb" title="Align right" onclick="fmt('justifyRight')">⇥</button>
-          <div class="tb-sep"></div>
-          <!-- Color -->
           <label title="Text colour" style="cursor:pointer;display:flex;align-items:center">
-            <span style="font-size:11px;color:var(--text-dim);margin-right:4px">A</span>
-            <input type="color" class="color-pick" id="text-color" value="#cc2222"
+            <span style="font-size:10px;color:#555;margin-right:3px">A</span>
+            <input type="color" class="color-pick" id="text-color" value="#000000"
                    onchange="fmt('foreColor',this.value)" title="Text colour">
           </label>
           <div class="tb-sep"></div>
-          <button class="tb" title="Insert link" onclick="insertLink()">🔗 Link</button>
+          <button class="tb" title="Insert link" onclick="insertLink()">🔗</button>
         </div>
         <div class="rich-editor" id="enc-editor" contenteditable="true"
              spellcheck="true"
@@ -262,35 +318,28 @@ body {
       <div class="kdf-bar-track"><div class="kdf-bar-fill" id="enc-bar"></div></div>
     </div>
 
-    <button class="btn btn-encode" onclick="doEncode()">Encrypt &amp; Download</button>
+    <div class="kdf-progress" id="enc-progress">
+      <span id="enc-progress-label">Encrypting…</span>
+      <div class="kdf-bar-track"><div class="kdf-bar-fill" id="enc-bar"></div></div>
+    </div>
 
-    <a class="btn btn-encode" href="https://drive.google.com/drive/folders/1HbjZaYwtKzzH84dtG5-1yqfRWcIfdnw8?usp=sharing" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;background:#1a73e8;">☁ Upload to Google Drive</a>
+    <button class="btn btn-primary" onclick="doEncode()">Encrypt &amp; Download</button>
+
+    <a class="btn btn-secondary" href="https://drive.google.com/drive/folders/1HbjZaYwtKzzH84dtG5-1yqfRWcIfdnw8?usp=sharing" target="_blank" rel="noopener">☁ Upload to Google Drive</a>
 
     <div class="error-msg" id="enc-error"></div>
 
     <div class="output" id="enc-output">
-      <div class="output-header">
-        <h3>Your encrypted message is ready</h3>
-      </div>
-      <p style="font-family:var(--serif);font-size:15px;color:var(--text-dim);line-height:1.7;margin-bottom:16px">
-        Download the file below and share it however you like — email, message, USB.
-        Only someone with your password <strong>and</strong> the RSA private key can read it.
-      </p>
-      <div class="action-row">
-        <button class="download-btn" onclick="downloadBin()">↓ Download encrypted file</button>
-      </div>
+      <div class="divider"></div>
+      <div class="output-label">Encrypted</div>
+      <p class="output-text">Your cipher file is ready. Download it and upload to the shared Drive folder.</p>
+      <button class="download-btn" onclick="downloadBin()">↓ Download .bin file</button>
     </div>
+
   </div>
 
-  <div class="privacy">
-    <p>
-      <strong>100% private.</strong><br>
-      Nothing leaves your browser. No accounts, no servers, no tracking.<br>
-      Protected by 2048-bit RSA + password-derived key.
-    </p>
-  </div>
 
-</div><!-- /container -->
+</div><!-- /plate -->
 
 <script>
 'use strict';
@@ -768,17 +817,6 @@ document.getElementById('enc-editor').addEventListener('drop', function(e) {
   e.preventDefault();
 });
 </script>
-
-<style>
-/* Placeholder for empty editor */
-.rich-editor[data-empty="true"]::before {
-  content: attr(data-placeholder);
-  position: absolute;
-  color: #cccccc;
-  pointer-events: none;
-}
-.rich-editor { position: relative; }
-</style>
 
 </body>
 </html>
