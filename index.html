@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzle Cipher</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Crimson+Pro:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+
+<style>
+/* Rich-text editor additions */
+.editor-wrapper {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 8px 10px;
+  background: #f7f7f7;
+  border-bottom: 1px solid var(--border);
+}
+.tb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tb:hover { background: #e8e8e8; color: var(--text); border-color: var(--border); }
+.tb.active { background: #e8e8e8; color: var(--accent); border-color: var(--accent-dim); }
+.tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 3px; align-self: center; }
+.rich-editor {
+  min-height: 220px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 16px;
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  white-space: pre-wrap;
+}
+.rich-editor:focus { outline: none; }
+.rich-editor blockquote {
+  border-left: 3px solid var(--accent-dim);
+  margin: 8px 0;
+  padding: 4px 12px;
+  color: var(--text-dim);
+}
+.rich-editor h1 { font-size: 1.6em; font-family: var(--serif); margin-bottom: 4px; }
+.rich-editor h2 { font-size: 1.3em; font-family: var(--serif); margin-bottom: 4px; }
+.rich-editor ul, .rich-editor ol { padding-left: 24px; }
+/* color picker */
+input[type=color].color-pick {
+  width: 26px; height: 26px;
+  border: none; border-radius: 3px;
+  padding: 2px; cursor: pointer;
+  background: none;
+}
+/* progress bar */
+.kdf-progress {
+  display: none;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: #f7f7f7;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.kdf-progress.visible { display: block; }
+.kdf-bar-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.kdf-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.1s;
+}
+
+/* ── Core layout & shared components ──────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --border: #e0e0e0;
+  --text: #1a1a1a;
+  --text-dim: #888888;
+  --accent: #cc2222;
+  --accent-dim: #cc2222;
+  --red: #cc2222;
+  --mono: 'JetBrains Mono', monospace;
+  --serif: 'Crimson Pro', Georgia, serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+}
+
+.container {
+  max-width: 680px;
+  width: 100%;
+  background: #ffffff;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 48px 40px;
+  margin: 40px auto;
+  position: relative;
+}
+.container::before {
+  content: 'CIPHER';
+  position: absolute; top: 16px; left: 20px;
+  font-size: 9px; letter-spacing: 3px; color: #cccccc;
+}
+.container::after {
+  content: '⧫';
+  position: absolute; top: 12px; right: 20px;
+  font-size: 14px; color: #cc2222;
+}
+
+.header { text-align: center; margin-bottom: 48px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+.header h1 { font-size: 13px; font-weight: 500; letter-spacing: 6px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+.header p { font-family: var(--serif); font-size: 18px; font-weight: 300; font-style: italic; color: var(--text-dim); line-height: 1.6; }
+
+
+.field { margin-bottom: 22px; }
+.field label { display: block; font-size: 10px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+.field input, .field textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  padding: 13px 16px; color: var(--text); font-family: var(--mono); font-size: 14px; outline: none;
+  transition: border-color 0.2s;
+}
+.field input:focus, .field textarea:focus { border-color: var(--accent-dim); }
+.field textarea { min-height: 120px; resize: vertical; line-height: 1.7; }
+.field input::placeholder, .field textarea::placeholder { color: #cccccc; }
+
+.password-field { position: relative; }
+.password-field input { padding-right: 48px; }
+.toggle-pass { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px; padding: 4px; }
+
+.btn { width: 100%; padding: 16px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; }
+.btn-encode { background: var(--accent); color: #ffffff; }
+.btn-encode:hover { background: #a01a1a; }
+
+.output { display: none; animation: fadeIn 0.4s ease; }
+.output.visible { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.output-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.output-header h3 { font-size: 10px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); }
+
+
+.error-msg { padding: 14px; background: #fff5f5; border: 1px solid #e0c0c0; border-radius: 4px; color: var(--red); font-size: 13px; margin-bottom: 16px; display: none; }
+.error-msg.visible { display: block; }
+
+.privacy { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; }
+.privacy p { font-size: 11px; color: var(--text-dim); line-height: 1.8; }
+.privacy strong { color: var(--accent-dim); font-weight: 500; }
+
+
+.action-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.download-btn { display: inline-block; padding: 10px 20px; font-family: var(--mono); font-size: 11px; letter-spacing: 1px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; color: var(--text-dim); cursor: pointer; text-decoration: none; transition: all 0.2s; }
+.download-btn:hover { border-color: var(--accent-dim); color: var(--text); }
+
+
+@media (max-width: 480px) {
+  .container { padding: 24px 16px 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h1>⧫ Puzzle Cipher ⧫</h1>
+    <p>Write a private message and lock it with a password.<br>
+    Everything stays on your device — nothing is sent anywhere.</p>
+  </div>
+
+  <!-- ══ ENCODE VIEW ═══════════════════════════════════════════════════════ -->
+  <div id="encode-view">
+
+    <div class="field">
+      <label>Password — you'll give this to the recipient in person</label>
+      <div class="password-field">
+        <input type="password" id="enc-pass" placeholder="Enter a strong password" autocomplete="off">
+        <button class="toggle-pass" onclick="togglePass('enc-pass',this)" title="Show/hide">◉</button>
+      </div>
+    </div>
+
+    <!-- Rich-text editor -->
+    <div class="field">
+      <label>Your message</label>
+      <div class="editor-wrapper">
+        <div class="editor-toolbar">
+          <!-- Text style -->
+          <button class="tb" title="Bold" onclick="fmt('bold')"><b>B</b></button>
+          <button class="tb" title="Italic" onclick="fmt('italic')"><i>I</i></button>
+          <button class="tb" title="Underline" onclick="fmt('underline')"><u>U</u></button>
+          <button class="tb" title="Strike" onclick="fmt('strikeThrough')"><s>S</s></button>
+          <div class="tb-sep"></div>
+          <!-- Headings -->
+          <button class="tb" title="Heading 1" onclick="fmtBlock('h1')">H1</button>
+          <button class="tb" title="Heading 2" onclick="fmtBlock('h2')">H2</button>
+          <button class="tb" title="Paragraph" onclick="fmtBlock('p')">¶</button>
+          <button class="tb" title="Quote" onclick="fmtBlock('blockquote')">❝</button>
+          <div class="tb-sep"></div>
+          <!-- Lists -->
+          <button class="tb" title="Bullet list" onclick="fmt('insertUnorderedList')">• list</button>
+          <button class="tb" title="Numbered list" onclick="fmt('insertOrderedList')">1. list</button>
+          <div class="tb-sep"></div>
+          <!-- Align -->
+          <button class="tb" title="Align left" onclick="fmt('justifyLeft')">⇤</button>
+          <button class="tb" title="Align center" onclick="fmt('justifyCenter')">⇔</button>
+          <button class="tb" title="Align right" onclick="fmt('justifyRight')">⇥</button>
+          <div class="tb-sep"></div>
+          <!-- Color -->
+          <label title="Text colour" style="cursor:pointer;display:flex;align-items:center">
+            <span style="font-size:11px;color:var(--text-dim);margin-right:4px">A</span>
+            <input type="color" class="color-pick" id="text-color" value="#cc2222"
+                   onchange="fmt('foreColor',this.value)" title="Text colour">
+          </label>
+          <div class="tb-sep"></div>
+          <button class="tb" title="Insert link" onclick="insertLink()">🔗 Link</button>
+        </div>
+        <div class="rich-editor" id="enc-editor" contenteditable="true"
+             spellcheck="true"
+             data-placeholder="Write your message here…"></div>
+      </div>
+    </div>
+
+    <div class="kdf-progress" id="enc-progress">
+      <span id="enc-progress-label">Encrypting…</span>
+      <div class="kdf-bar-track"><div class="kdf-bar-fill" id="enc-bar"></div></div>
+    </div>
+
+    <button class="btn btn-encode" onclick="doEncode()">Encrypt &amp; Download</button>
+
+    <div class="error-msg" id="enc-error"></div>
+
+    <div class="output" id="enc-output">
+      <div class="output-header">
+        <h3>Your encrypted message is ready</h3>
+      </div>
+      <p style="font-family:var(--serif);font-size:15px;color:var(--text-dim);line-height:1.7;margin-bottom:16px">
+        Download the file below and share it however you like — email, message, USB.
+        Only someone with your password <strong>and</strong> the RSA private key can read it.
+      </p>
+      <div class="action-row">
+        <button class="download-btn" onclick="downloadBin()">↓ Download encrypted file</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="privacy">
+    <p>
+      <strong>100% private.</strong><br>
+      Nothing leaves your browser. No accounts, no servers, no tracking.<br>
+      Protected by 2048-bit RSA + password-derived key.
+    </p>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════════
+ *  CIPHER ENGINE v3  —  RSA + Password hybrid encryption
+ *
+ *  Format (v3 — pure binary output):
+ *    [6 bytes magic: 43 49 50 48 03 00]         (unencrypted)
+ *    [32 bytes random salt]                      (unencrypted)
+ *    [256 bytes RSA-encrypted session key]       (RSA PKCS#1 v1.5)
+ *    [4 bytes checksum | LZ77(HTML)]             (XOR-encrypted with final_key)
+ *
+ *  session_key  = random 32 bytes
+ *  pw_key       = KDF(password, salt, 65536 rounds)
+ *  final_key    = XOR(pw_key, session_key)
+ *  Stream cipher: key_byte(final_key, 32, pos, 8)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+const MAGIC         = new Uint8Array([0x43,0x49,0x50,0x48,0x03,0x00]);
+const SALT_LEN      = 32;
+const KEY_LEN       = 32;
+const KDF_ROUNDS    = 65536;
+const RSA_KEY_BYTES = 256;
+
+/* ── RSA Public Key (hardcoded) ──────────────────────────────────────────── */
+const RSA_N = BigInt('0xa427fcaf9b7765b2d7be25f312aaf9d416c6dfbe3ff6e150d420fae0b5aa8291adcd2f2fd0980903c58c2c93e62bf3a34bcc9527cb7e0b27a1ec255b172b7d9c54af58f4c4ab7fc170821db3323d0dbf60203167952ec19d4f838aabe611feb64e30a76522da2a789ade2f8ad270bca17c5060218b9475606c51160f3ad454324fccaba0f06a8742f117932fd4bc5cf5b08f855f9de94caf2c4c239f7023472f42b71a4476f8be3019c6ef13c3dcc5d7c3bbf61bdff213c6e71f63f64af8dee3e9588467f24f542fc66f61aadb233a6a8fa44f8ec6c98f6556252adeb9bc8514708cd2df55277b7d7b098608c6bcd3bdda0c494979d5860f338f12c29adb3c41');
+const RSA_E = 65537n;
+
+/* ── RSA encrypt with PKCS#1 v1.5 type 2 padding ────────────────────────── */
+function modPow(base, exp, mod) {
+  let result = 1n;
+  base = base % mod;
+  while (exp > 0n) {
+    if (exp & 1n) result = (result * base) % mod;
+    exp >>= 1n;
+    base = (base * base) % mod;
+  }
+  return result;
+}
+
+function rsaEncrypt(msgBytes) {
+  const k    = RSA_KEY_BYTES;
+  const mLen = msgBytes.length;
+  const psLen = k - mLen - 3;
+
+  /* Build PKCS#1 v1.5 type 2 padded block */
+  const padded = new Uint8Array(k);
+  padded[0] = 0x00;
+  padded[1] = 0x02;
+  /* PS: random non-zero bytes (>= 8) */
+  for (let i = 0; i < psLen; i++) {
+    do { padded[2 + i] = crypto.getRandomValues(new Uint8Array(1))[0]; }
+    while (padded[2 + i] === 0);
+  }
+  padded[2 + psLen] = 0x00;
+  /* Copy message after padding */
+  for (let i = 0; i < mLen; i++) padded[3 + psLen + i] = msgBytes[i];
+
+  /* Convert padded block to BigInt */
+  let m = 0n;
+  for (let i = 0; i < k; i++) m = (m << 8n) | BigInt(padded[i]);
+
+  /* RSA: c = m^e mod n */
+  const c = modPow(m, RSA_E, RSA_N);
+
+  /* Convert c to k-byte big-endian array */
+  const result = new Uint8Array(k);
+  let tmp = c;
+  for (let i = k - 1; i >= 0; i--) {
+    result[i] = Number(tmp & 0xFFn);
+    tmp >>= 8n;
+  }
+  return result;
+}
+
+/* ── Bit helpers ──────────────────────────────────────────────────────────── */
+function rol32(x, n) {
+  x = x >>> 0;
+  return (((x << n) | (x >>> (32 - n))) >>> 0);
+}
+function add32(a, b) { return ((a >>> 0) + (b >>> 0)) >>> 0; }
+function mul32(a, b) { return Math.imul(a, b) >>> 0; }
+
+/* ── derive_key — must match C exactly ───────────────────────────────────── */
+function deriveKey(password, saltBytes) {
+  const pw = password;
+  const pl = pw.length;
+
+  let s = new Uint32Array([
+    0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
+    0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19
+  ]);
+
+  for (let i = 0; i < pl; i++) {
+    const x = pw.charCodeAt(i) & 0xFF;
+    const j = i & 7;
+    s[j]       = (rol32(s[j], 5) ^ add32(mul32(x, 0x9E3779B1), i >>> 0)) >>> 0;
+    s[(j+1)&7] = (add32(s[(j+1)&7], s[j]) ^ rol32(s[(j+3)&7], 11)) >>> 0;
+  }
+
+  for (let i = 0; i < SALT_LEN; i++) {
+    const x = saltBytes[i];
+    const j = i & 7;
+    s[j]       = (rol32(s[j], 7) ^ add32(mul32(x, 0x517CC1B7), i >>> 0)) >>> 0;
+    s[(j+5)&7] = (s[(j+5)&7] ^ rol32(s[j], 17)) >>> 0;
+  }
+
+  for (let r = 0; r < KDF_ROUNDS; r++) {
+    for (let j = 0; j < 8; j++) {
+      s[j] = rol32(s[j] ^ s[(j+1)&7], 13);
+      s[j] = add32(s[j], mul32(s[(j+7)&7], 0x6C62272E));
+      s[j] = (s[j] ^ mul32(r >>> 0, 0x9E3779B9)) >>> 0;
+    }
+    if ((r & 0xFF) === 0) {
+      for (let j = 0; j < 8; j++)
+        s[j] = (rol32(s[j], 1) ^ s[(j+4)&7]) >>> 0;
+    }
+  }
+
+  const out = new Uint8Array(KEY_LEN);
+  for (let i = 0; i < 8; i++) {
+    out[i*4+0] = (s[i] >>> 24) & 0xFF;
+    out[i*4+1] = (s[i] >>> 16) & 0xFF;
+    out[i*4+2] = (s[i] >>>  8) & 0xFF;
+    out[i*4+3] =  s[i]         & 0xFF;
+  }
+  return out;
+}
+
+/* ── key_byte — stream cipher (same as C) ───────────────────────────────── */
+function keyByte(pw, pwLen, pos, depth) {
+  let m = ((pw[pos % pwLen] ^ ((pos * 7 + 53) & 0xFF)) + ((pos * 13 + 37) & 0xFF)) & 0xFF;
+  for (let r = 1; r <= depth; r++) {
+    const prev = m;
+    const pc   = pw[(pos + r * 3 + 7) % pwLen] & 0xFF;
+    m = (m ^ pc) & 0xFF;
+    m = ((m << 3) | (m >>> 5)) & 0xFF;
+    m = (m + ((pos * r + 17) & 0xFF)) & 0xFF;
+    m = (m ^ ((r * 31 + 89) & 0xFF)) & 0xFF;
+    m = ((m << 5) | (m >>> 3)) & 0xFF;
+    m = (m ^ (((pos >>> 4) + r * 47) & 0xFF)) & 0xFF;
+    m = (m + ((pc * 3 + prev) & 0xFF)) & 0xFF;
+  }
+  return m & 0xFF;
+}
+
+/* ── checksum — 4-byte hash (same as C) ─────────────────────────────────── */
+function checksum(data) {
+  let a = 0x5A3C6F12 >>> 0, b = 0x9E4B7D8A >>> 0,
+      c = 0x1F8C2E5B >>> 0, e = 0xD7A09634 >>> 0;
+  for (let i = 0; i < data.length; i++) {
+    const x = data[i];
+    a = (rol32(a, 5)  ^ mul32(x, 0x9E3779B1)) >>> 0;
+    b = (add32(rol32(b, 7), mul32(x, 40499)) ^ a) >>> 0;
+    c = (rol32(c, 11) ^ add32(x, b)) >>> 0;
+    e = (add32(rol32(e, 13), (x ^ c ^ a) >>> 0)) >>> 0;
+  }
+  return [
+    (a ^ b ^ c ^ e) & 0xFF,
+    ((a >>> 8)  ^ (b >>> 12) ^ (c >>>  4) ^ e) & 0xFF,
+    ((a >>> 16) ^ (b >>>  8) ^  c ^ (e >>> 12)) & 0xFF,
+    ((a >>> 24) ^  b ^ (c >>> 16) ^ (e >>>  8)) & 0xFF
+  ];
+}
+
+/* ── LZ77 compressor ─────────────────────────────────────────────────────── */
+const WIN = 4096, MAXM = 18, MINM = 3;
+
+function lzCompress(input) {
+  const out = [];
+  const len = input.length;
+  out.push((len >>> 24) & 0xFF, (len >>> 16) & 0xFF, (len >>> 8) & 0xFF, len & 0xFF);
+  let i = 0;
+  while (i < len) {
+    const flagPos = out.length;
+    out.push(0);
+    let flag = 0;
+    for (let bit = 0; bit < 8 && i < len; bit++) {
+      const start = Math.max(0, i - WIN);
+      let bestLen = 0, bestOff = 0;
+      for (let j = start; j < i; j++) {
+        let l = 0;
+        while (l < MAXM && i + l < len && input[j + l] === input[i + l]) l++;
+        if (l > bestLen) { bestLen = l; bestOff = i - j; }
+      }
+      if (bestLen >= MINM && bestOff >= 1 && bestOff <= 4096) {
+        flag |= (1 << (7 - bit));
+        const om1 = bestOff - 1;
+        const lm  = bestLen - MINM + 1;
+        out.push(((lm >>> 4) & 0xF0) | ((om1 >>> 8) & 0x0F));
+        out.push(om1 & 0xFF);
+        out.push(lm & 0xFF);
+        i += bestLen;
+      } else {
+        out.push(input[i++]);
+      }
+    }
+    out[flagPos] = flag;
+  }
+  return new Uint8Array(out);
+}
+
+/* ── Generate random bytes ───────────────────────────────────────────────── */
+function randomBytes(n) {
+  const buf = new Uint8Array(n);
+  crypto.getRandomValues(buf);
+  return buf;
+}
+
+/* ── Serialize rich editor content to standalone HTML ───────────────────── */
+function serializeMessage() {
+  const body = document.getElementById('enc-editor').innerHTML;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cipher Message</title>
+<style>
+  body{max-width:720px;margin:40px auto;padding:24px;background:#ffffff;color:#1a1a1a;
+    font-family:'Georgia',serif;font-size:16px;line-height:1.8}
+  h1{font-size:1.6em;margin-bottom:8px} h2{font-size:1.3em;margin-bottom:6px}
+  blockquote{border-left:3px solid #cc2222;margin:8px 0;padding:4px 12px;color:#888888}
+  ul,ol{padding-left:24px} a{color:#cc2222}
+</style>
+</head>
+<body>${body}</body>
+</html>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ *  ENCODE  —  RSA + Password hybrid → pure binary output
+ * ═══════════════════════════════════════════════════════════════════════════ */
+async function doEncode() {
+  const pass   = document.getElementById('enc-pass').value;
+  const editor = document.getElementById('enc-editor');
+
+  if (!pass)              return showError('enc-error', 'Enter a password.');
+  if (!editor.textContent.trim())
+                          return showError('enc-error', 'Your message is empty.');
+
+  const html     = serializeMessage();
+  const msgBytes = new TextEncoder().encode(html);
+
+  /* Show progress */
+  setProgress('enc', true, 'Preparing…', 5);
+  await tick();
+
+  /* Generate random salt and session key */
+  const salt       = randomBytes(SALT_LEN);
+  const sessionKey = randomBytes(KEY_LEN);
+
+  setProgress('enc', true, 'RSA encrypting session key…', 10);
+  await tick();
+
+  /* RSA-encrypt session key with hardcoded public key */
+  const rsaBlock = rsaEncrypt(sessionKey);
+
+  setProgress('enc', true, 'Compressing…', 15);
+  await tick();
+  const compressed = lzCompress(msgBytes);
+
+  setProgress('enc', true, 'Deriving password key…', 20);
+  await tick();
+
+  /* KDF in chunks so we can animate the progress bar */
+  const pwKey = await deriveKeyAsync(pass, salt, (pct) => {
+    setProgress('enc', true,
+      `Deriving key… ${Math.round(pct)}%`, 20 + pct * 0.6);
+  });
+
+  setProgress('enc', true, 'Encrypting…', 82);
+  await tick();
+
+  /* final_key = XOR( pwKey, sessionKey ) */
+  const finalKey = new Uint8Array(KEY_LEN);
+  for (let i = 0; i < KEY_LEN; i++)
+    finalKey[i] = pwKey[i] ^ sessionKey[i];
+
+  /* Compute checksum of compressed data */
+  const ck = checksum(compressed);
+
+  /* Build encrypted payload: checksum(4) + compressed */
+  const payloadLen = 4 + compressed.length;
+
+  /* Assemble full output:
+   *   magic(6) + salt(32) + rsaBlock(256) + encryptedPayload */
+  const headerLen = MAGIC.length + SALT_LEN + RSA_KEY_BYTES;
+  const output = new Uint8Array(headerLen + payloadLen);
+
+  /* Copy magic */
+  output.set(MAGIC, 0);
+  /* Copy salt */
+  output.set(salt, 6);
+  /* Copy RSA-encrypted session key */
+  output.set(rsaBlock, 6 + SALT_LEN);
+
+  /* XOR-encrypt checksum + compressed data */
+  const encStart = headerLen;
+  for (let i = 0; i < payloadLen; i++) {
+    const src = i < 4 ? ck[i] : compressed[i - 4];
+    output[encStart + i] = (src ^ keyByte(finalKey, KEY_LEN, i, 8)) & 0xFF;
+  }
+
+  setProgress('enc', true, 'Done!', 100);
+  await tick();
+  setProgress('enc', false);
+
+  lastBinaryOutput = output;
+
+  document.getElementById('enc-output').classList.add('visible');
+}
+
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ *  KDF async wrapper (runs in chunks so UI stays responsive, bar updates)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+async function deriveKeyAsync(password, saltBytes, onProgress) {
+  return new Promise(resolve => {
+    const pl = password.length;
+
+    const s = new Uint32Array([
+      0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
+      0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19
+    ]);
+
+    for (let i = 0; i < pl; i++) {
+      const x = password.charCodeAt(i) & 0xFF;
+      const j = i & 7;
+      s[j]       = (rol32(s[j], 5) ^ add32(mul32(x, 0x9E3779B1), i >>> 0)) >>> 0;
+      s[(j+1)&7] = (add32(s[(j+1)&7], s[j]) ^ rol32(s[(j+3)&7], 11)) >>> 0;
+    }
+
+    for (let i = 0; i < SALT_LEN; i++) {
+      const x = saltBytes[i];
+      const j = i & 7;
+      s[j]       = (rol32(s[j], 7) ^ add32(mul32(x, 0x517CC1B7), i >>> 0)) >>> 0;
+      s[(j+5)&7] = (s[(j+5)&7] ^ rol32(s[j], 17)) >>> 0;
+    }
+
+    let r = 0;
+    const CHUNK = 1024;
+
+    function step() {
+      const end = Math.min(r + CHUNK, KDF_ROUNDS);
+      while (r < end) {
+        for (let j = 0; j < 8; j++) {
+          s[j] = rol32(s[j] ^ s[(j+1)&7], 13);
+          s[j] = add32(s[j], mul32(s[(j+7)&7], 0x6C62272E));
+          s[j] = (s[j] ^ mul32(r, 0x9E3779B9)) >>> 0;
+        }
+        if ((r & 0xFF) === 0) {
+          for (let j = 0; j < 8; j++)
+            s[j] = (rol32(s[j], 1) ^ s[(j+4)&7]) >>> 0;
+        }
+        r++;
+      }
+      onProgress((r / KDF_ROUNDS) * 100);
+      if (r < KDF_ROUNDS) {
+        setTimeout(step, 0);
+      } else {
+        const out = new Uint8Array(KEY_LEN);
+        for (let i = 0; i < 8; i++) {
+          out[i*4+0] = (s[i] >>> 24) & 0xFF;
+          out[i*4+1] = (s[i] >>> 16) & 0xFF;
+          out[i*4+2] = (s[i] >>>  8) & 0xFF;
+          out[i*4+3] =  s[i]         & 0xFF;
+        }
+        resolve(out);
+      }
+    }
+    setTimeout(step, 0);
+  });
+}
+
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ *  UI helpers
+ * ═══════════════════════════════════════════════════════════════════════════ */
+let lastBinaryOutput = null;
+
+function tick() { return new Promise(r => setTimeout(r, 16)); }
+
+function setProgress(which, visible, label, pct) {
+  const el  = document.getElementById(`${which}-progress`);
+  const lbl = document.getElementById(`${which}-progress-label`);
+  const bar = document.getElementById(`${which}-bar`);
+  if (visible) {
+    el.classList.add('visible');
+    lbl.textContent = label;
+    bar.style.width = (pct || 0) + '%';
+  } else {
+    el.classList.remove('visible');
+  }
+}
+
+function togglePass(id, btn) {
+  const inp = document.getElementById(id);
+  inp.type  = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '◉' : '◎';
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 6000);
+}
+
+function downloadBin() {
+  if (!lastBinaryOutput) return;
+  const blob = new Blob([lastBinaryOutput], { type: 'application/octet-stream' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'cipher-message.bin';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+
+
+/* ── Rich text editor commands ───────────────────────────────────────────── */
+function focusEditor() {
+  document.getElementById('enc-editor').focus();
+}
+
+function fmt(cmd, val) {
+  focusEditor();
+  document.execCommand(cmd, false, val || null);
+}
+
+function fmtBlock(tag) {
+  focusEditor();
+  document.execCommand('formatBlock', false, tag);
+}
+
+function insertLink() {
+  const url = prompt('Enter URL:');
+  if (url) {
+    focusEditor();
+    document.execCommand('createLink', false, url);
+  }
+}
+
+/* Placeholder behaviour for contenteditable */
+document.getElementById('enc-editor').addEventListener('input', function() {
+  this.dataset.empty = !this.textContent.trim() ? 'true' : '';
+});
+document.getElementById('enc-editor').addEventListener('focus', function() {
+  this.dataset.empty = '';
+});
+document.getElementById('enc-editor').addEventListener('blur', function() {
+  this.dataset.empty = !this.textContent.trim() ? 'true' : '';
+});
+
+/* Block pasting images — only allow text */
+document.getElementById('enc-editor').addEventListener('paste', function(e) {
+  e.preventDefault();
+  const html = e.clipboardData.getData('text/html');
+  const text = e.clipboardData.getData('text/plain');
+  if (html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    tmp.querySelectorAll('img, video, audio, object, embed, iframe, .attachment').forEach(el => el.remove());
+    document.execCommand('insertHTML', false, tmp.innerHTML);
+  } else if (text) {
+    document.execCommand('insertText', false, text);
+  }
+});
+
+/* Block drag-and-drop of files/images into editor */
+document.getElementById('enc-editor').addEventListener('drop', function(e) {
+  e.preventDefault();
+});
+</script>
+
+<style>
+/* Placeholder for empty editor */
+.rich-editor[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: #cccccc;
+  pointer-events: none;
+}
+.rich-editor { position: relative; }
+</style>
+
+</body>
+</html>
